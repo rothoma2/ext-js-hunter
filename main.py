@@ -3,6 +3,7 @@ import json
 from urllib.parse import urlparse
 from typing import Dict, List
 
+from pprint import pprint
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
@@ -48,8 +49,13 @@ def extract_script_domains(logs: List[dict], site_domain: str) -> List[Dict[str,
         if message.get("method") == "Network.responseReceived":
             params = message.get("params", {})
             if params.get("type") == "Script":
+                #
+                #
                 url = params.get("response", {}).get("url")
-                if url:
+                print(url)
+                #
+                #
+                if url and len(urlparse(url).netloc) > 0:
                     domains.add(urlparse(url).netloc)
     return _classify(domains, site_domain)
 
@@ -74,9 +80,6 @@ def main() -> None:
     all_domains = extract_resource_domains(logs, site_domain)
     script_domains = extract_script_domains(logs, site_domain)
 
-    print("All resource domains:")
-    for info in all_domains:
-        print(f"- {info['domain']} ({info['tag']})")
     print("\nJavaScript domains:")
     for info in script_domains:
         print(f"- {info['domain']} ({info['tag']})")
