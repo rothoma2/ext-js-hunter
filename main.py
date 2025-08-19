@@ -1,11 +1,9 @@
 import argparse
 import json
 import re
-import sys
 import os
 from urllib.parse import urlparse
 from typing import Dict, List
-from pprint import pprint
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
@@ -46,8 +44,7 @@ def load_site(url: str) -> list:
     options.add_argument("--disable-accelerated-2d-canvas")
     options.add_argument("--no-first-run")
     options.add_argument("--disable-renderer-backgrounding")
-    options.add_argument("--memory-pressure-off")  
-
+    options.add_argument("--memory-pressure-off")
 
     for key, value in caps.items():
         options.set_capability(key, value)
@@ -62,7 +59,7 @@ def load_site(url: str) -> list:
     try:
         driver.get(url)
         return driver.get_log("performance")
-    
+
     except TimeoutException:
         print(f"Timeout while trying to load the page: {url}")
         return []
@@ -104,6 +101,7 @@ def extract_script_domains(current_domain: str, logs: List[dict]) -> List['Javas
                     ))
     return resources
 
+
 def classify(resources: List['JavascriptResource'], site_domain: str, internal_domains: set) -> None:
     """Classify JavaScript resources as internal or external."""
     for resource in resources:
@@ -112,10 +110,11 @@ def classify(resources: List['JavascriptResource'], site_domain: str, internal_d
         else:
             resource.disposition = "external"
 
+
 def _classify(current_domain: str, domains: set, site_domain: str, internal_domains: set) -> List[Dict[str, str]]:
     """Classify domains as internal or external relative to the site domain or provided internal domains."""
     results = []
-    
+
     for domain in domains:
         if domain == site_domain or domain in internal_domains:
             tag = "internal"
@@ -124,15 +123,18 @@ def _classify(current_domain: str, domains: set, site_domain: str, internal_doma
         results.append({"target_url": current_domain, "js_domain": domain, "tag": tag})
     return results
 
+
 def is_valid_url(url: str) -> bool:
     URL_REGEX = re.compile(r'^(https?://)[\w.-]+(?:\.[\w\.-]+)+[/#?]?.*$')
     return bool(URL_REGEX.match(url))
+
 
 def write_results_to_json(resources: List['JavascriptResource'], output_file: str) -> None:
     """Write the results to a JSON file."""
     print(f"Found {len(resources)} results. Writing results to {output_file}")
     with open(output_file, "w") as f:
         json.dump([resource.to_dict() for resource in resources], f, indent=4)
+
 
 def write_summary_to_json(resources: List['JavascriptResource'], summary_file: str) -> None:
     """Write a summary JSON file with internal and external JS domains grouped by referer_url."""
@@ -156,6 +158,7 @@ def write_summary_to_json(resources: List['JavascriptResource'], summary_file: s
     with open(summary_file, "w") as f:
         json.dump(summary, f, indent=4)
 
+
 def load_internal_domains(domains_file: str) -> set:
     """Load internal domains from a file."""
     if not os.path.exists(domains_file):
@@ -165,6 +168,7 @@ def load_internal_domains(domains_file: str) -> set:
         internal_domains = {line.strip() for line in f if line.strip()}
     print(f"Loaded {len(internal_domains)} internal domains from {domains_file}")
     return internal_domains
+
 
 def process_domains_in_parallel(domains: List[str], internal_domains: set, max_workers: int) -> List[JavascriptResource]:
     """Process domains in parallel using a ThreadPoolExecutor."""
@@ -188,6 +192,7 @@ def process_domains_in_parallel(domains: List[str], internal_domains: set, max_w
 
     return resources
 
+
 def process_single_domain(domain: str, internal_domains: set) -> List[JavascriptResource]:
     """Process a single domain."""
     if not is_valid_url(domain):
@@ -198,6 +203,7 @@ def process_single_domain(domain: str, internal_domains: set) -> List[Javascript
     resources = extract_script_domains(domain, logs)
     classify(resources, site_domain, internal_domains)
     return resources
+
 
 def process_input_file(input_file: str, internal_domains: set, max_workers: int) -> List[JavascriptResource]:
     """Process domains from an input file in parallel."""
@@ -210,12 +216,13 @@ def process_input_file(input_file: str, internal_domains: set, max_workers: int)
     print(f"Loaded {len(domains_to_scan)} domains to be sanned from {input_file}")
     return process_domains_in_parallel(domains_to_scan, internal_domains, max_workers)
 
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Extract resource domains from a web page.")
 
     parser.add_argument("url", nargs="?", help="URL of the site to scan")
     parser.add_argument("-i", "--input-file", help="Path to a file containing domains to scan", type=str)
-    parser.add_argument("-d", "--domains-file", help="Path to a file containing internal domains", type=str)
+    parser.add_argument("-d", "--domains-file", help="Path to a file containing domains to be considered internal", type=str)
     parser.add_argument("-o", "--output-file", help="Path to a file to save results in JSON format", type=str)
     parser.add_argument("-j", "--jobs", help="Number of parallel jobs", type=int, default=2)
 
@@ -242,6 +249,7 @@ def main() -> None:
     else:
         print("Javascript Domains Loaded:")
         print(tabulate([resource.to_dict() for resource in resources], headers="keys", tablefmt="github"))
+
 
 if __name__ == "__main__":
     main()
